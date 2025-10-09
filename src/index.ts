@@ -836,8 +836,41 @@ export class YgoApi {
 	/**
 	 * Check if response contains card data
 	 */
-	private isCardResponse(data: any): boolean {
-		return data?.data?.[0]?.card_images !== undefined
+	private isCardResponse(data: unknown): data is CardInfoResponse {
+		return (
+			typeof data === 'object' &&
+			data !== null &&
+			'data' in data &&
+			Array.isArray((data as { data: unknown[] }).data) &&
+			(data as { data: { card_images: unknown[] }[] }).data[0]?.card_images !==
+				undefined
+		)
+	}
+
+	/**
+	 * Fetch wrapper to handle enqueing
+	 * Implements timeout using AbortController
+	 *
+	 * @param url The URL to fetch
+	 * @param method HTTP method (default: GET)
+	 * @param headers Optional headers
+	 * @returns Fetch Response
+	 */
+	private async fetch(url: string, method?: string, headers?: HeadersInit) {
+		const controller = new AbortController()
+		const timeoutId = setTimeout(
+			() => controller.abort(),
+			this.fallbackConfig.timeout,
+		)
+		const task = async () =>
+			fetch(url, {
+				method: method || 'GET',
+				headers: headers,
+				signal: controller.signal,
+			})
+		const response = await this.requestQueue.enqueue(task, controller.signal)
+		clearTimeout(timeoutId)
+		return response
 	}
 
 	/**
@@ -877,25 +910,7 @@ export class YgoApi {
 				attempt++
 			) {
 				try {
-					const controller = new AbortController()
-					const timeoutId = setTimeout(
-						() => controller.abort(),
-						this.fallbackConfig.timeout,
-					)
-
-					const task = async () =>
-						fetch(url, {
-							method: 'GET',
-							headers: this.headers,
-							signal: controller.signal,
-						})
-
-					const response = await this.requestQueue.enqueue(
-						task,
-						controller.signal,
-					)
-
-					clearTimeout(timeoutId)
+					const response = await this.fetch(url, 'GET', this.headers)
 					const data = await response.json()
 
 					if (!response.ok) {
