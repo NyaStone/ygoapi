@@ -34,8 +34,8 @@ export type CardType =
 	| 'Skill Card'
 	| 'Token'
 
-// Frame Types
-export type FrameType =
+// Monster frame types
+export type MonsterFrameType =
 	| 'normal'
 	| 'effect'
 	| 'ritual'
@@ -49,10 +49,28 @@ export type FrameType =
 	| 'fusion_pendulum'
 	| 'synchro_pendulum'
 	| 'xyz_pendulum'
-	| 'spell'
-	| 'trap'
-	| 'token'
-	| 'skill'
+
+// Spell frame types
+export type PendulumFrameType =
+	| 'normal_pendulum'
+	| 'effect_pendulum'
+	| 'ritual_pendulum'
+	| 'fusion_pendulum'
+	| 'synchro_pendulum'
+	| 'xyz_pendulum'
+
+// Link frame types
+export type LinkFrameType = 'link'
+
+// Other Frame Types for cards that do not implement frame specific data
+export type OtherFrameType = 'token' | 'skill'
+
+// All Frame Types
+export type FrameType =
+	| MonsterFrameType
+	| PendulumFrameType
+	| LinkFrameType
+	| OtherFrameType
 
 // Monster Races
 export type MonsterRace =
@@ -185,28 +203,13 @@ export interface BanlistInfo {
 	ban_goat?: string
 }
 
-export interface Card {
+export interface CardCommon<F = FrameType> {
 	id: number
 	name: string
 	type: CardType
-	frameType: FrameType
+	frameType: F
 	desc: string
 	ygoprodeck_url: string
-
-	// Monster specific
-	atk?: number
-	def?: number
-	level?: number
-	race: CardRace
-	attribute?: Attribute
-
-	// Pendulum specific
-	scale?: number
-
-	// Link specific
-	linkval?: number
-	linkmarkers?: LinkMarker[]
-
 	// Arrays
 	card_sets?: CardSet[]
 	card_images: CardImage[]
@@ -233,6 +236,44 @@ export interface Card {
 		genesys_points?: number
 	}>
 }
+
+export interface MonsterCard extends CardCommon<MonsterFrameType> {
+	// Monster specific
+	atk?: number
+	def?: number
+	level?: number
+	race: MonsterRace
+	attribute?: Attribute
+}
+
+export interface SpellCard extends CardCommon<'spell'> {
+	// Spell specific
+	race: SpellRace
+}
+
+export interface TrapCard extends CardCommon<'trap'> {
+	// Trap specific
+	race: TrapRace
+}
+
+export interface PendulumCard extends CardCommon<PendulumFrameType> {
+	// Pendulum specific
+	scale?: number
+}
+
+export interface LinkCard extends CardCommon<LinkFrameType> {
+	// Link specific
+	linkval?: number
+	linkmarkers?: LinkMarker[]
+}
+
+export type Card =
+	| MonsterCard
+	| SpellCard
+	| TrapCard
+	| PendulumCard
+	| LinkCard
+	| CardCommon<OtherFrameType>
 
 export interface CardInfoResponse {
 	data: Card[]
