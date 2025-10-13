@@ -62,6 +62,12 @@ export type PendulumFrameType =
 // Link frame types
 export type LinkFrameType = 'link'
 
+// Spell frame types
+export type SpellFrameType = 'spell'
+
+// Trap frame types
+export type TrapFrameType = 'trap'
+
 // Other Frame Types for cards that do not implement frame specific data
 export type OtherFrameType = 'token' | 'skill'
 
@@ -70,6 +76,8 @@ export type FrameType =
 	| MonsterFrameType
 	| PendulumFrameType
 	| LinkFrameType
+	| SpellFrameType
+	| TrapFrameType
 	| OtherFrameType
 
 // Monster Races
@@ -203,7 +211,23 @@ export interface BanlistInfo {
 	ban_goat?: string
 }
 
-export interface CardCommon<F = FrameType> {
+export type MiscInfo = Array<{
+	beta_name?: string
+	views?: number
+	viewsweek?: number
+	upvotes?: number
+	downvotes?: number
+	formats?: Format[]
+	treated_as?: string
+	tcg_date?: string
+	ocg_date?: string
+	konami_id?: string
+	md_rarity?: string
+	has_effect?: 0 | 1
+	genesys_points?: number
+}>
+
+export interface CardCommonInterface<F extends FrameType = FrameType> {
 	id: number
 	name: string
 	type: CardType
@@ -220,24 +244,12 @@ export interface CardCommon<F = FrameType> {
 	archetype?: string
 
 	// Misc info (when misc=yes)
-	misc_info?: Array<{
-		beta_name?: string
-		views?: number
-		viewsweek?: number
-		upvotes?: number
-		downvotes?: number
-		formats?: Format[]
-		treated_as?: string
-		tcg_date?: string
-		ocg_date?: string
-		konami_id?: string
-		md_rarity?: string
-		has_effect?: 0 | 1
-		genesys_points?: number
-	}>
+	misc_info?: MiscInfo
 }
 
-export interface MonsterCard extends CardCommon<MonsterFrameType> {
+export interface MonsterCardCommonInterface<
+	T extends MonsterFrameType = MonsterFrameType,
+> extends CardCommonInterface<T> {
 	// Monster specific
 	atk?: number
 	def?: number
@@ -246,26 +258,41 @@ export interface MonsterCard extends CardCommon<MonsterFrameType> {
 	attribute?: Attribute
 }
 
-export interface SpellCard extends CardCommon<'spell'> {
+export type MonsterCardInterface = MonsterCardCommonInterface<
+	Exclude<MonsterFrameType, PendulumFrameType | LinkFrameType>
+>
+
+export interface SpellCardInterface
+	extends CardCommonInterface<SpellFrameType> {
 	// Spell specific
 	race: SpellRace
 }
 
-export interface TrapCard extends CardCommon<'trap'> {
+export interface TrapCardInterface extends CardCommonInterface<TrapFrameType> {
 	// Trap specific
 	race: TrapRace
 }
 
-export interface PendulumCard extends CardCommon<PendulumFrameType> {
+export interface PendulumCardInterface
+	extends MonsterCardCommonInterface<PendulumFrameType> {
 	// Pendulum specific
 	scale?: number
 }
 
-export interface LinkCard extends CardCommon<LinkFrameType> {
+export interface LinkCardInterface
+	extends MonsterCardCommonInterface<LinkFrameType> {
 	// Link specific
 	linkval?: number
 	linkmarkers?: LinkMarker[]
 }
+
+export type CardInterface =
+	| MonsterCardInterface
+	| SpellCardInterface
+	| TrapCardInterface
+	| PendulumCardInterface
+	| LinkCardInterface
+	| CardCommonInterface<OtherFrameType>
 
 export type Card =
 	| MonsterCard
@@ -275,7 +302,12 @@ export type Card =
 	| LinkCard
 	| CardCommon<OtherFrameType>
 
-export interface CardInfoResponse {
+export interface CardInfoRawResponse {
+	data: CardInterface[]
+	meta?: PaginationMeta
+}
+
+export interface CardInfoResponse extends CardInfoRawResponse {
 	data: Card[]
 	meta?: PaginationMeta
 }
@@ -369,6 +401,123 @@ export interface CardInfoParams {
 
 	// Language
 	language?: Language
+}
+
+// ============================================
+// Card classes
+// ============================================
+
+export class CardCommon<F extends FrameType> implements CardCommonInterface<F> {
+	id: number
+	name: string
+	type: CardType
+	desc: string
+	frameType: F
+	ygoprodeck_url: string
+	card_sets?: CardSet[]
+	card_images: CardImage[]
+	card_prices: CardPrice[]
+	banlist_info?: BanlistInfo
+	archetype?: string
+	misc_info?: MiscInfo
+
+	constructor(data: CardCommonInterface<F>) {
+		this.id = data.id
+		this.name = data.name
+		this.type = data.type
+		this.frameType = data.frameType
+		this.desc = data.desc
+		this.ygoprodeck_url = data.ygoprodeck_url
+		this.card_sets = data.card_sets
+		this.card_images = data.card_images
+		this.card_prices = data.card_prices
+		this.banlist_info = data.banlist_info
+		this.archetype = data.archetype
+		this.misc_info = data.misc_info
+	}
+}
+
+export abstract class MonsterCardCommon<
+		T extends MonsterFrameType = MonsterFrameType,
+	>
+	extends CardCommon<T>
+	implements MonsterCardCommonInterface<T>
+{
+	// Monster specific
+	atk?: number
+	def?: number
+	level?: number
+	race: MonsterRace
+	attribute?: Attribute
+
+	constructor(data: MonsterCardCommonInterface<T>) {
+		super(data)
+		this.atk = data.atk
+		this.def = data.def
+		this.level = data.level
+		this.race = data.race
+		this.attribute = data.attribute
+	}
+}
+
+export class MonsterCard
+	extends MonsterCardCommon<
+		Exclude<MonsterFrameType, PendulumFrameType | LinkFrameType>
+	>
+	implements MonsterCardInterface {}
+
+export class SpellCard
+	extends CardCommon<SpellFrameType>
+	implements SpellCardInterface
+{
+	// Spell specific
+	race: SpellRace
+
+	constructor(data: SpellCardInterface) {
+		super(data)
+		this.race = data.race
+	}
+}
+
+export class TrapCard
+	extends CardCommon<TrapFrameType>
+	implements TrapCardInterface
+{
+	// Trap specific
+	race: TrapRace
+
+	constructor(data: TrapCardInterface) {
+		super(data)
+		this.race = data.race
+	}
+}
+
+export class PendulumCard
+	extends MonsterCardCommon<PendulumFrameType>
+	implements PendulumCardInterface
+{
+	// Pendulum specific
+	scale?: number
+
+	constructor(data: PendulumCardInterface) {
+		super(data)
+		this.scale = data.scale
+	}
+}
+
+export class LinkCard
+	extends MonsterCardCommon<LinkFrameType>
+	implements LinkCardInterface
+{
+	// Link specific
+	linkval?: number
+	linkmarkers?: LinkMarker[]
+
+	constructor(data: LinkCardInterface) {
+		super(data)
+		this.linkval = data.linkval
+		this.linkmarkers = data.linkmarkers
+	}
 }
 
 // ============================================
@@ -877,7 +1026,7 @@ export class YgoApi {
 	/**
 	 * Check if response contains card data
 	 */
-	private isCardResponse(data: unknown): data is CardInfoResponse {
+	private isCardResponse(data: unknown): data is CardInfoRawResponse {
 		return (
 			typeof data === 'object' &&
 			data !== null &&
@@ -886,6 +1035,38 @@ export class YgoApi {
 			(data as { data: { card_images: unknown[] }[] }).data[0]?.card_images !==
 				undefined
 		)
+	}
+
+	/**
+	 * Create a card instance from API data
+	 * @param data Card data from API
+	 * @returns Card instance
+	 */
+	private cardFactory(data: CardInterface): Card {
+		switch (data.frameType) {
+			case 'normal':
+			case 'effect':
+			case 'ritual':
+			case 'fusion':
+			case 'synchro':
+			case 'xyz':
+				return new MonsterCard(data)
+			case 'link':
+				return new LinkCard(data)
+			case 'normal_pendulum':
+			case 'effect_pendulum':
+			case 'ritual_pendulum':
+			case 'fusion_pendulum':
+			case 'synchro_pendulum':
+			case 'xyz_pendulum':
+				return new PendulumCard(data)
+			case 'spell':
+				return new SpellCard(data)
+			case 'trap':
+				return new TrapCard(data)
+			default:
+				return new CardCommon(data)
+		}
 	}
 
 	/**
@@ -1012,7 +1193,16 @@ export class YgoApi {
 			for (const [key, value] of Object.entries(params)) {
 				sanitizedKeys[key] = value
 			}
-		return this.request<CardInfoResponse>('/cardinfo.php', sanitizedKeys)
+		const response = await this.request<CardInfoRawResponse>(
+			'/cardinfo.php',
+			sanitizedKeys,
+		)
+		// Convert raw data to class instances
+		const result = {
+			...response,
+			data: response.data.map((card) => this.cardFactory(card)),
+		}
+		return result
 	}
 
 	/**
@@ -1023,7 +1213,7 @@ export class YgoApi {
 	async getCardByName(name: string): Promise<Card | null> {
 		try {
 			const response = await this.getCardInfo({ name })
-			return response.data[0] || null
+			return response.data[0] ? this.cardFactory(response.data[0]) : null
 		} catch (error) {
 			if (error instanceof YgoApiError && error.statusCode === 400) {
 				return null
@@ -1040,7 +1230,7 @@ export class YgoApi {
 	async getCardById(id: string | number): Promise<Card | null> {
 		try {
 			const response = await this.getCardInfo({ id })
-			return response.data[0] || null
+			return response.data[0] ? this.cardFactory(response.data[0]) : null
 		} catch (error) {
 			if (error instanceof YgoApiError && error.statusCode === 400) {
 				return null
@@ -1094,7 +1284,7 @@ export class YgoApi {
 	 */
 	async getRandomCard(): Promise<Card> {
 		const response = await this.request<CardInfoResponse>('/randomcard.php')
-		return response.data[0]
+		return this.cardFactory(response.data[0])
 	}
 
 	/**
