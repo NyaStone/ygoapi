@@ -1012,10 +1012,7 @@ export class YgoApi {
 	 */
 	private cacheImagesInBackground(data: CardInfoResponse | Card): void {
 		if (!this.imageCacheEnabled || !this.imageCache) return
-
-		const cards = Array.isArray(data)
-			? data
-			: (data as CardInfoResponse).data || [data as Card]
+		const cards = this.isCardResponse(data) ? data.data : [data]
 
 		// Fire and forget - don't block response
 		Promise.all(cards.map((card) => this.cacheCardImages(card))).catch(() => {
